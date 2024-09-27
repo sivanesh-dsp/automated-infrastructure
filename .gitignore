@@ -1,7 +1,7 @@
 .terraform/
 .vscode/
-packer-module/packer/.image_version
-packer-module/packer/.manifest.json
+modules/packer-module/packer/.image_version
+modules/packer-module/packer/.manifest.json
 .terraform.lock.hcl
 docker.tfplan
 instance.tfplan

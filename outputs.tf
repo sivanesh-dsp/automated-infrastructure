@@ -1,3 +1,3 @@
 output "instance_public_ip" {
-  value = module.create-instance.instance_public_ipd
+  value = "${module.create-instance.instance_public_ip}"
 }
