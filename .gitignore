@@ -1,0 +1,10 @@
+.terraform/
+.vscode/
+packer-module/packer/.image_version
+packer-module/packer/.manifest.json
+.terraform.lock.hcl
+docker.tfplan
+instance.tfplan
+packer.tfplan
+terraform.tfstate
+terraform.tfstate.backup
