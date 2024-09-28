@@ -4,9 +4,8 @@ provider "aws" {
 
 resource "aws_instance" "custom_ami_instance" {
   ami           = var.ami_id
-  instance_type = "t2.micro"
-  key_name = "guvi-cprime"
-  # vpc_security_group_ids = ["sg-0ae16c146447cb0de"]  
+  instance_type = var.instance_type
+  key_name = var.instance_key
   security_groups = [ "server-sg" ]
   tags = {
     Name = "Custom-AMI-Docker-Instance"
