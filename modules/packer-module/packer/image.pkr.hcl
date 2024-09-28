@@ -28,7 +28,7 @@ build {
   sources = ["source.amazon-ebs.ubuntu"]
 
   provisioner "ansible" {
-    playbook_file = "install_docker.yml"
+    playbook_file = "./ansible-playbook/playbook.yml"
   }
 
   post-processor "manifest" { 

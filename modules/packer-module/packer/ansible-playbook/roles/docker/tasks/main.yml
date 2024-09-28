@@ -1,0 +1,69 @@
+---
+### Docker Installation Tasks ###
+- name: Update the apt package index for Docker
+  apt:
+    update_cache: yes
+
+- name: Install required packages for Docker
+  apt:
+    name: 
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - software-properties-common
+    state: present
+
+- name: Add Docker’s official GPG key
+  apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    state: present
+
+- name: Set up the Docker repository
+  apt_repository:
+    repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable"
+    state: present
+
+- name: Install Docker
+  apt:
+    name: docker-ce
+    state: latest
+
+- name: Start and enable Docker service
+  systemd:
+    name: docker
+    enabled: yes
+    state: started
+
+### Enable Docker Daemon on port 2375 to access remotely ###
+- name: Check if Docker is running
+  shell: ps -ef | grep -v grep | grep docker
+  register: docker_process
+  failed_when: docker_process.rc != 0
+
+- name: Backup Docker service file
+  copy:
+    src: /lib/systemd/system/docker.service
+    dest: /lib/systemd/system/docker.service.bak
+    remote_src: yes
+  when: docker_process is defined and docker_process.rc == 0
+
+- name: Enable TCP socket access to Docker
+  lineinfile:
+    path: /lib/systemd/system/docker.service
+    regexp: '^ExecStart='
+    line: 'ExecStart=/usr/bin/dockerd -H fd:// -H tcp://0.0.0.0:2375'
+    backup: yes
+
+- name: Reload systemd manager configuration
+  command: systemctl daemon-reload
+
+- name: Restart Docker service
+  service:
+    name: docker
+    state: restarted
+
+- name: Verify remote access to Docker
+  command: curl http://localhost:2375/images/json
+  register: curl_result
+  failed_when: "'[]' not in curl_result.stdout"
+  ignore_errors: yes

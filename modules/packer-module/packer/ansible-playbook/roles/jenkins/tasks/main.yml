@@ -1,0 +1,35 @@
+---
+### Jenkins Installation Tasks ###
+- name: Download Jenkins GPG key
+  get_url:
+    url: https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+    dest: /usr/share/keyrings/jenkins-keyring.asc
+    mode: '0644'
+
+- name: Add Jenkins repository
+  apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/"
+    state: present
+    filename: 'jenkins'
+
+- name: Update apt package index for Jenkins
+  apt:
+    update_cache: yes
+
+- name: Install fontconfig and OpenJDK 17 for Jenkins
+  apt:
+    name: 
+      - fontconfig
+      - openjdk-17-jre
+    state: present
+
+- name: Install Jenkins
+  apt:
+    name: jenkins
+    state: present
+
+- name: Start and enable Jenkins service
+  systemd:
+    name: jenkins
+    enabled: yes
+    state: started
