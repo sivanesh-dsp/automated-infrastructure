@@ -1,0 +1,43 @@
+---
+- name: Automated Jenkins Installation and User Creation
+  hosts: all
+  become: yes
+
+  vars:
+    new_user: "Jenkinsuser"
+    new_user_password: "newpassword"
+
+  tasks:
+    - name: Install Jenkins
+      apt:
+        name: jenkins
+        state: present
+      when: ansible_os_family == "Debian"
+    
+    - name: Disable Jenkins setup wizard
+      lineinfile:
+       dest=/etc/default/jenkins
+       regexp=^JAVA_ARGS=
+       line=JAVA_ARGS="-Djava.awt.headless=true -Djenkins.install.runSetupWizard=false"
+      become: true
+
+    - name: Ensure Jenkins is running
+      service:
+        name: jenkins
+        state: started
+        enabled: yes
+
+    - name: Install Jenkins CLI
+      get_url:
+        url: "http://localhost:8080/jnlpJars/jenkins-cli.jar"
+        dest: "/usr/local/bin/jenkins-cli.jar"
+        mode: '0755'
+
+    - name: Get Jenkins initial admin password
+      command: cat /var/lib/jenkins/secrets/initialAdminPassword
+      register: jenkins_admin_password
+
+    - name: Create Jenkins user
+      shell: |
+        echo 'jenkins.model.Jenkins.instance.securityRealm.createAccount("{{new_user}}", "{{new_user_password}}")' | \
+        java -jar /usr/local/bin/jenkins-cli.jar -s http://localhost:8080/ -auth admin:{{ jenkins_admin_password.stdout }} groovy =
