@@ -23,7 +23,7 @@ resource "null_resource" "creating_user_in_jenkins" {
       sleep 10;
       ansible-playbook -i ${aws_instance.custom_ami_instance.public_ip}, \
       --private-key ~/.ssh/${var.instance_key}.pem \
-      ~/poc4/modules/instance-module/playbook.yml
+      ~/poc4/modules/instance-module/jenkins-user.yml
     EOT
   }
 }
