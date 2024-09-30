@@ -1,0 +1,115 @@
+- name: Automated SonarQube Installation and User Creation
+  hosts: Sonarqube
+  become: yes
+
+  vars:
+    sonarqube_admin_user: "admin"
+    sonarqube_admin_password: "admin"
+    admin_user: "admin"
+    admin_password: "9094"
+    sonarqube_url: "http://{{ ansible_host }}:9000"
+    jenkins_url: "http://localhost:8080"
+
+    project_key: "poc"       # Replace with your desired project key
+    project_name: "poc"      # Replace with your desired project name
+
+  tasks:
+    # - name: Create docker group if it doesn't exist
+    #   group:
+    #     name: docker
+    #     state: present
+
+    # - name: Add the current user to the docker group
+    #   user:
+    #     name: "{{ ansible_user }}"
+    #     groups: docker
+    #     append: yes
+
+    # - name: Restart Docker service to apply group changes
+    #   service:
+    #     name: docker
+    #     state: restarted
+
+    # - name: Notify user about re-login requirement
+    #   debug:
+    #     msg: "Please log out and log back in for the changes to take effect."
+
+
+    - name: Check SonarQube status
+      command: >
+        curl -u {{ sonarqube_admin_user }}:{{ sonarqube_admin_password }} 
+        -X GET "{{ sonarqube_url }}/api/system/status"
+      register: sonar_status
+
+    - name: Debug SonarQube status
+      debug:
+        var: sonar_status.stdout
+
+    - name: Change SonarQube admin password using API
+      command: >
+        curl -u {{ sonarqube_admin_user }}:{{ sonarqube_admin_password }} 
+        -X POST "{{ sonarqube_url }}/api/users/change_password" 
+        -d "login={{ sonarqube_admin_user }}&previousPassword={{ sonarqube_admin_password }}&password={{ admin_password }}"
+      register: password_change_result
+
+    - name: Debug password change result
+      debug:
+        var: password_change_result.stdout
+
+    - name: Check if Jenkins token already exists
+      command: >
+        curl -u {{ admin_user }}:{{ admin_password }} 
+        -X GET "{{ sonarqube_url }}/api/user_tokens/search"
+      register: existing_tokens
+
+    - name: Delete existing Jenkins token if found
+      command: >
+        curl -u {{ admin_user }}:{{ admin_password }} 
+        -X POST "{{ sonarqube_url }}/api/user_tokens/revoke" 
+        -d "login={{ admin_user }}&name=jenkins-token"
+      when: existing_tokens.stdout is search('jenkins-token')
+
+    - name: Create SonarQube token for Jenkins
+      command: >
+        curl -u {{ admin_user }}:{{ admin_password }} 
+        -X POST "{{ sonarqube_url }}/api/user_tokens/generate" 
+        -d "name=jenkins-token&login={{ admin_user }}"
+      register: sonar_token
+
+    - name: Debug token generation result
+      debug:
+        var: sonar_token.stdout
+
+    - name: Convert generated_token from JSON string
+      set_fact:
+        token_data: "{{ sonar_token.stdout | from_json }}"
+
+    - name: Integrate Jenkins with SonarQube
+      shell: |
+        echo "sonar.host.url={{ sonarqube_url }}" > /var/lib/jenkins/sonar.properties
+        echo "sonar.login={{ admin_user }}" >> /var/lib/jenkins/sonar.properties
+        echo "sonar.password={{ token_data.token }}" >> /var/lib/jenkins/sonar.properties
+    
+    - name: Create project in SonarQube using curl
+      shell: |
+        curl -X POST "{{ sonarqube_url }}/api/projects/create" \
+        -u "{{ admin_user }}:{{ admin_password }}" \
+        -d "project={{ project_key }}" \
+        -d "name={{ project_name }}"
+      register: create_project_response
+
+    - name: Debug project creation response
+      debug:
+        var: create_project_response
+
+    - name: Write SonarQube project details to sonar.properties
+      shell: |
+        echo "sonar.projectKey={{ project_key }}" >> /var/lib/jenkins/sonar.properties
+        echo "sonar.projectName={{ project_name }}" >> /var/lib/jenkins/sonar.properties
+      when: create_project_response.rc == 0  # Only write if project creation is successful
+
+
+    - name: Restart Jenkins to apply changes
+      systemd:
+        name: jenkins
+        state: restarted
