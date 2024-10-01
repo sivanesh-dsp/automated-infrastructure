@@ -12,3 +12,9 @@ module "docker" {
   instance_public_ip = module.instance.instance_public_ip
   instance_key = module.instance.security_key
 }
+
+module "ansible" {
+  source = "./modules/ansible-module"
+  instance_public_ip = module.instance.instance_public_ip
+  instance_key = module.instance.security_key
+}

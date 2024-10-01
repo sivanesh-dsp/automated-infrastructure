@@ -14,27 +14,6 @@
     project_name: "poc"      # Replace with your desired project name
 
   tasks:
-    # - name: Create docker group if it doesn't exist
-    #   group:
-    #     name: docker
-    #     state: present
-
-    # - name: Add the current user to the docker group
-    #   user:
-    #     name: "{{ ansible_user }}"
-    #     groups: docker
-    #     append: yes
-
-    # - name: Restart Docker service to apply group changes
-    #   service:
-    #     name: docker
-    #     state: restarted
-
-    # - name: Notify user about re-login requirement
-    #   debug:
-    #     msg: "Please log out and log back in for the changes to take effect."
-
-
     - name: Check SonarQube status
       command: >
         curl -u {{ sonarqube_admin_user }}:{{ sonarqube_admin_password }} 
