@@ -1,0 +1,76 @@
+<flow-definition plugin="workflow-job@2.39">
+  <actions/>
+  <description>Custom Nginx Deployment Pipeline</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty plugin="gitlab-plugin@1.5.12"/>
+  </properties>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@2.93">
+    <script>
+      pipeline {
+          agent any
+          environment {
+              DOCKER_IMAGE = 'custom_nginx_image'
+              CONTAINER_NAME = 'nginx_html'
+              SONARQUBE_SERVER = 'SonarQube'
+              PROJECT_KEY = 'poc'
+              SONAR_SCANNER_HOME = tool name: 'SonarQube Scanner', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
+          }
+
+          stages {
+              stage('Checkout') {
+                  steps {
+                      git url: 'https://github.com/sivanesh-dsp/Speed-Test.git', branch: 'main'
+                  }
+              }
+
+              stage('SonarQube Analysis') {
+                  steps {
+                      script {
+                          withSonarQubeEnv(SONARQUBE_SERVER) {
+                              sh "${SONAR_SCANNER_HOME}/bin/sonar-scanner -Dsonar.projectKey=${PROJECT_KEY} -Dsonar.sources=."
+                          }
+                      }
+                  }
+              }
+
+              stage('Build Docker Image') {
+                  steps {
+                      script {
+                          sh "docker build -t $DOCKER_IMAGE ."
+                      }
+                  }
+              }
+
+              stage('Deploy') {
+                  steps {
+                      script {
+                          sh "docker rm -f $CONTAINER_NAME || true"
+                          sh "docker run -d -p 80:80 --name $CONTAINER_NAME $DOCKER_IMAGE"
+                      }
+                  }
+              }
+
+              stage('Post-Deployment Test') {
+                  steps {
+                      script {
+                          sh 'curl -I http://localhost | grep "200 OK"'
+                      }
+                  }
+              }
+          }
+
+          post {
+              success {
+                  echo 'Deployment succeeded!'
+              }
+              failure {
+                  echo 'Deployment failed!'
+              }
+          }
+      }
+    </script>
+    <sandbox>true</sandbox>
+  </definition>
+  <triggers/>
+</flow-definition>

@@ -1,0 +1,82 @@
+---
+- name: Configure Jenkins for the pipeline
+  hosts: all
+  become: true
+  vars:
+    jenkins_url: "http://localhost:8080"   # URL of your Jenkins instance
+    jenkins_user: "admin"                  # Jenkins username
+    jenkins_password: "admin"     # Jenkins password
+    sonar_url: "http://localhost:9000" # URL of your SonarQube instance
+    sonar_token: "squ_2bfbaa930837e20ef226d5b51fad209f9b9a889a"    # SonarQube token
+
+  tasks:
+    # - name: Install Jenkins API dependencies
+    #   pip:
+    #     name: jenkinsapi
+    - name: Install jenkinsapi
+      command: "pip3 install jenkinsapi --break-system-packages"
+
+    - name: Install the SonarQube Scanner tool in Jenkins
+      jenkins_script:
+        url: "{{ jenkins_url }}"
+        user: "{{ jenkins_user }}"
+        password: "{{ jenkins_password }}"
+        script: |
+          jenkins.model.Jenkins.instance.getExtensionList(hudson.tools.ToolDescriptor.class).find { it.id == "hudson.plugins.sonar.SonarRunnerInstallation" }.installations += new hudson.plugins.sonar.SonarRunnerInstallation('SonarQube Scanner', '/opt/sonar-scanner', [])
+          jenkins.model.Jenkins.instance.save()
+
+    - name: Configure SonarQube Server URL in Jenkins
+      jenkins_script:
+        url: "{{ jenkins_url }}"
+        user: "{{ jenkins_user }}"
+        password: "{{ jenkins_password }}"
+        script: |
+          import jenkins.model.Jenkins
+          import hudson.plugins.sonar.SonarGlobalConfiguration
+          def inst = Jenkins.getInstance()
+          def sonarConfig = inst.getDescriptor(hudson.plugins.sonar.SonarGlobalConfiguration.class)
+
+          // Create or update the SonarQube server entry
+          sonarConfig.servers = [new hudson.plugins.sonar.SonarServer(
+              'SonarQube',                  // Name of the server (must match SONARQUBE_SERVER in pipeline)
+              '{{ sonar_url }}',             // SonarQube Server URL
+              '{{ sonar_token }}',           // Authentication token for SonarQube
+              null,                          // No username/password
+              false                          // No secret text credentials
+          )]
+
+          sonarConfig.save()
+          inst.save()
+
+    - name: Create SonarQube token credentials in Jenkins using Groovy
+      jenkins_script:
+        url: "{{ jenkins_url }}"
+        user: "{{ jenkins_user }}"
+        password: "{{ jenkins_password }}"
+        script: |
+          import com.cloudbees.plugins.credentials.CredentialsScope
+          import com.cloudbees.plugins.credentials.domains.Domain
+          import jenkins.model.Jenkins
+          import org.jenkinsci.plugins.plaincredentials.impl.StringCredentialsImpl
+          import hudson.util.Secret
+
+          def domain = Domain.global()
+          def credentialsStore = Jenkins.instance.getExtensionList('com.cloudbees.plugins.credentials.SystemCredentialsProvider')[0].getStore()
+
+          def sonarCreds = new StringCredentialsImpl(
+            CredentialsScope.GLOBAL,
+            'sonarqube-token',       // ID for credentials
+            'SonarQube Token',       // Description
+            Secret.fromString('{{ sonar_token }}') // Secret token for SonarQube
+          )
+
+          credentialsStore.addCredentials(domain, sonarCreds)
+          println("SonarQube token credentials added.")
+
+    - name: Configure Jenkins environment variables for Docker and SonarQube
+      jenkins_job:
+        url: "{{ jenkins_url }}"
+        user: "{{ jenkins_user }}"
+        password: "{{ jenkins_password }}"
+        name: "custom_pipeline_job"
+        config: "{{ lookup('template', 'job.xml') }}"
