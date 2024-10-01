@@ -12,9 +12,35 @@ terraform {
   }
 
 
+# Create Ansible inventory file for Jenkins and SonarQube
+resource "local_file" "inventory_ini" {
+  content = <<EOT
+[Sonarqube]
+sonarqube ansible_host=${var.instance_public_ip} ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/${var.instance_key}.pem
+
+EOT
+  filename = "${path.module}/playbook/inventory.ini"
+}
+
+#Run docker without sudo
+resource "null_resource" "docker-without-sudo" {
+  depends_on = [ local_file.inventory_ini ]
+    provisioner "local-exec" {
+        environment = {
+      ANSIBLE_HOST_KEY_CHECKING = "False"
+    }
+
+    command = <<-EOT
+      ansible-playbook -i ${path.module}/playbook/inventory.ini ${path.module}/playbook/docker.yml \
+      -e "ansible_ssh_common_args='-o StrictHostKeyChecking=no'"
+    EOT
+  }
+}
+
 # Define Docker volumes
 # iterative
 resource "docker_volume" "sonarqube_volumes" {
+  depends_on = [ null_resource.docker-without-sudo ]
   for_each = var.sonarqube_volumes
     name = each.key
 }
@@ -36,34 +62,9 @@ resource "docker_container" "sonarqube" {
     }
   }
 }
-
-# resource "null_resource" "creating_user_in_jenkins" {
-#   depends_on = [ docker_container.sonarqube ]
-#   provisioner "local-exec" {
-#     environment = {
-#       ANSIBLE_HOST_KEY_CHECKING = "False"
-#     }
-#     command = <<EOT
-#       sudo ansible-playbook -i ${var.instance_public_ip}, \
-#       --private-key ~/.ssh/${var.instance_type}.pem \
-#       -e ansible_user=ubuntu \
-#       ~/poc4/modules/docker-module/sonarqube-user.yml
-#     EOT
-#   }
-# }
-
-# Create Ansible inventory file for Jenkins and SonarQube
-resource "local_file" "inventory_ini" {
-  content = <<EOT
-[Sonarqube]
-sonarqube ansible_host=${var.instance_public_ip} ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/${var.instance_key}.pem
-
-EOT
-  filename = "${path.module}/playbook/inventory.ini"
-}
-
+  
 # Run Ansible Playbook after generating the inventory file
-resource "null_resource" "run_sonarqube_playbooks" {
+resource "null_resource" "sonarqube" {
   depends_on = [local_file.inventory_ini]
   
   provisioner "local-exec" {
@@ -73,6 +74,21 @@ resource "null_resource" "run_sonarqube_playbooks" {
 
     command = <<-EOT
       ansible-playbook -i ${path.module}/playbook/inventory.ini ${path.module}/playbook/sonarqube-user.yml \
+      -e "ansible_ssh_common_args='-o StrictHostKeyChecking=no'"
+    EOT
+  }
+}
+
+resource "null_resource" "Jenkins" {
+  depends_on = [null_resource.sonarqube]
+  
+  provisioner "local-exec" {
+        environment = {
+      ANSIBLE_HOST_KEY_CHECKING = "False"
+    }
+
+    command = <<-EOT
+      ansible-playbook -i ${path.module}/playbook/inventory.ini ${path.module}/playbook/jenkins.yml \
       -e "ansible_ssh_common_args='-o StrictHostKeyChecking=no'"
     EOT
   }
