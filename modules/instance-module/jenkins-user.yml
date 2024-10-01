@@ -4,15 +4,21 @@
   become: yes
 
   vars:
-    new_user: "Jenkinsuser"
-    new_user_password: "newpassword"
+    new_user: "admin"
+    new_user_password: "admin"
+    jenkins_plugins:
+      - git
+      - workflow-aggregator
+      - credentials
+      - job-dsl
+      - sonar
 
   tasks:
-    - name: Install Jenkins
-      apt:
-        name: jenkins
-        state: present
-      when: ansible_os_family == "Debian"
+    # - name: Install Jenkins
+    #   apt:
+    #     name: jenkins
+    #     state: present
+    #   when: ansible_os_family == "Debian"
     
     - name: Disable Jenkins setup wizard
       lineinfile:
@@ -27,7 +33,7 @@
         state: started
         enabled: yes
 
-    - name: Make sure service has time to start
+    - name: Make sure service has time to start  # to not get 503 server error for downloading cli.jar
       pause:
         seconds: 60
 
@@ -45,3 +51,17 @@
       shell: |
         echo 'jenkins.model.Jenkins.instance.securityRealm.createAccount("{{new_user}}", "{{new_user_password}}")' | \
         java -jar /usr/local/bin/jenkins-cli.jar -s http://localhost:8080/ -auth admin:{{ jenkins_admin_password.stdout }} groovy =
+
+    - name: Install Jenkins plugins
+      shell: |
+        for plugin in {{ jenkins_plugins | join(' ') }}; do
+          java -jar /usr/local/bin/jenkins-cli.jar -s http://localhost:8080/ -auth {{ new_user }}:{{ new_user_password }} install-plugin $plugin
+        done
+      register: plugin_installation_output
+      notify: restart jenkins
+
+  handlers:
+    - name: restart jenkins
+      service:
+        name: jenkins
+        state: restarted
