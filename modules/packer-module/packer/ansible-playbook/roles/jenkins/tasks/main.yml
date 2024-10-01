@@ -1,5 +1,15 @@
 ---
-### Jenkins Installation Tasks ###
+- name: Ensure python3-pip is installed
+  apt:
+    name: python3-pip
+    state: present
+    update_cache: yes
+    force_apt_get: yes
+
+- name: Install python-jenkins with pip3 and --break-system-packages
+  command: "pip3 install python-jenkins --break-system-packages"
+  
+  ### Jenkins Installation Tasks ###
 - name: Download Jenkins GPG key
   get_url:
     url: https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
