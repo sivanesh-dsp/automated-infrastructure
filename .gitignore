@@ -9,3 +9,5 @@ packer.tfplan
 terraform.tfstate
 terraform.tfstate.backup
 .terraform.tfstate.lock.info
+modules/ansible-module/playbook/sonarqube_credentials.json
+modules/ansible-module/playbook/inventory.ini
