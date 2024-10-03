@@ -18,14 +18,15 @@ resource "null_resource" "docker-without-sudo" {
     }
 
     command = <<-EOT
-      ansible-playbook -i ${path.module}/playbook/inventory.ini ${path.module}/docker.yml \
-      -e "ansible_ssh_common_args='-o StrictHostKeyChecking=no'"
+      ansible-playbook -i ${var.instance_public_ip}, ${path.module}/docker.yml \
+      --private-key ~/.ssh/${var.instance_key}.pem 
     EOT
   }
 }
 # Define Docker volumes
 # iterative
 resource "docker_volume" "sonarqube_volumes" {
+  depends_on = [ null_resource.docker-without-sudo ]
   for_each = var.sonarqube_volumes
     name = each.key
 }
