@@ -7,12 +7,16 @@
     jenkins_user: "admin"                  # Jenkins username
     jenkins_password: "admin"     # Jenkins password
     sonar_url: "http://localhost:9000" # URL of your SonarQube instance
-    sonar_token: "squ_2bfbaa930837e20ef226d5b51fad209f9b9a889a"    # SonarQube token
 
   tasks:
-    # - name: Install Jenkins API dependencies
-    #   pip:
-    #     name: jenkinsapi
+    - name: Load SonarQube credentials from JSON file
+      set_fact:
+        sonarqube_credentials: "{{ lookup('file', './sonarqube_credentials.json') | from_json }}"
+    
+    - name: Set SonarQube project key and token
+      set_fact:
+        sonarqube_token: "{{ sonarqube_credentials.SONAR_TOKEN }}"
+
     - name: Install jenkinsapi
       command: "pip3 install jenkinsapi --break-system-packages"
 
@@ -40,7 +44,7 @@
           sonarConfig.servers = [new hudson.plugins.sonar.SonarServer(
               'SonarQube',                  // Name of the server (must match SONARQUBE_SERVER in pipeline)
               '{{ sonar_url }}',             // SonarQube Server URL
-              '{{ sonar_token }}',           // Authentication token for SonarQube
+              '{{ sonarqube_token }}',           // Authentication token for SonarQube
               null,                          // No username/password
               false                          // No secret text credentials
           )]
@@ -67,13 +71,13 @@
             CredentialsScope.GLOBAL,
             'sonarqube-token',       // ID for credentials
             'SonarQube Token',       // Description
-            Secret.fromString('{{ sonar_token }}') // Secret token for SonarQube
+            Secret.fromString('{{ sonarqube_token }}') // Secret token for SonarQube
           )
 
           credentialsStore.addCredentials(domain, sonarCreds)
           println("SonarQube token credentials added.")
 
-    - name: Configure Jenkins environment variables for Docker and SonarQube
+    - name: Configure Jenkins environment variables for SonarQube
       jenkins_job:
         url: "{{ jenkins_url }}"
         user: "{{ jenkins_user }}"
