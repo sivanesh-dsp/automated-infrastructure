@@ -69,6 +69,18 @@
         echo "sonar.login={{ admin_user }}" >> /var/lib/jenkins/sonar.properties
         echo "sonar.password={{ token_data.token }}" >> /var/lib/jenkins/sonar.properties
     
+    - name: Store SonarQube token as a JSON file on the Ansible control machine
+      become: yes
+      delegate_to: localhost
+      copy:
+        dest: "./sonarqube_credentials.json"
+        content: |
+          {
+            "SONAR_TOKEN": "{{ token_data.token }}",
+          }
+        mode: '0644'
+
+    
     - name: Create project in SonarQube using curl
       shell: |
         curl -X POST "{{ sonarqube_url }}/api/projects/create" \
