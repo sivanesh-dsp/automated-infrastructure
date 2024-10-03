@@ -4,8 +4,8 @@
   become: true
   vars:
     jenkins_url: "http://localhost:8080"   # URL of your Jenkins instance
-    jenkins_user: "admin"                  # Jenkins username
-    jenkins_password: "admin"     # Jenkins password
+    jenkins_user: "jenkinsuser"                  # Jenkins username
+    jenkins_password: "jenkinspassword"     # Jenkins password
     sonar_url: "http://localhost:9000" # URL of your SonarQube instance
 
   tasks:
