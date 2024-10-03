@@ -15,7 +15,12 @@ terraform apply -target=module.packer -auto-approve
 terraform apply -target=module.instance -auto-approve
 ```
 
-4. To configure both jenkins and sonarqube
+4. To pull and run SonarQube
 ```
 terraform apply -target=modue.docker -auto-approve
+```
+
+5. To configure and integrate Jenkins and SonarQube
+```
+terraform apply -target=module.ansible -auto-approve
 ```
