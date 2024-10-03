@@ -4,8 +4,8 @@
   become: yes
 
   vars:
-    new_user: "admin"
-    new_user_password: "admin"
+    new_user: "jenkinsuser"
+    new_user_password: "jenkinspassword"
     jenkins_plugins:
       - git
       - workflow-aggregator
@@ -13,13 +13,7 @@
       - job-dsl
       - sonar
 
-  tasks:
-    # - name: Install Jenkins
-    #   apt:
-    #     name: jenkins
-    #     state: present
-    #   when: ansible_os_family == "Debian"
-    
+  tasks:    
     - name: Disable Jenkins setup wizard
       lineinfile:
        dest=/etc/default/jenkins
@@ -49,7 +43,7 @@
 
     - name: Create Jenkins user
       shell: |
-        echo 'jenkins.model.Jenkins.instance.securityRealm.createAccount("{{new_user}}", "{{new_user_password}}")' | \
+        echo 'jenkins.model.Jenkins.instance.securityRealm.createAccount("{{ new_user }}", "{{ new_user_password }}")' | \
         java -jar /usr/local/bin/jenkins-cli.jar -s http://localhost:8080/ -auth admin:{{ jenkins_admin_password.stdout }} groovy =
 
     - name: Install Jenkins plugins
